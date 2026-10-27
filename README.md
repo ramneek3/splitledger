@@ -2,7 +2,7 @@
 
 **Shared-expense ledger for flatmates, trips and student groups. Tracks who paid what, splits it fairly to the paisa, and works out the fewest payments needed to settle everyone up.**
 
-- **Live app:** `<DEPLOYMENT_URL>` (demo login: `demo@splitledger.app` / `demo12345`)
+- **Live app:** https://splitledger-1a82.onrender.com (demo login: `demo@splitledger.app` / `demo12345`)
 - **Demo video:** `<DEMO_VIDEO_URL>`
 - **Docs:** [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md)
 
@@ -140,7 +140,7 @@ npm run build && npm start
 1. Push this repo to GitHub.
 2. Render dashboard → **New → Blueprint** → select the repo. `render.yaml` provisions a Postgres database and the web service, generates `JWT_SECRET`, and seeds the demo account.
 3. Optionally add `ANTHROPIC_API_KEY` under the service's Environment tab.
-4. The app is served at `https://<service>.onrender.com`; `/api/health` reports database connectivity.
+4. The app is served at `https://<service>.onrender.com` (this project: https://splitledger-1a82.onrender.com); `/api/health` reports database connectivity.
 
 **Docker (any host):**
 ```bash
