@@ -97,10 +97,13 @@ export function extractWithRules(text, members) {
     new RegExp(`\\b${escapeRe(first)}\\s+(paid|covered|bought)\\b|\\bpaid by\\s+${escapeRe(first)}\\b`, 'i').test(lower));
   if (payer) paidBy = payer.m.name;
 
+  // "with/between X" names the people sharing. The payer is always in; the author only
+  // when they paid or mention themselves ("me", "us", "we").
   let participants = ['everyone'];
-  if (/\b(with|between|for)\b/.test(lower) && mentioned.length) {
-    participants = [...new Set(['me', ...mentioned])];
-    if (payer && !/\bwith\b/.test(lower)) participants = mentioned;
+  const others = mentioned.filter((n) => n !== payer?.m.name);
+  if (/\b(with|between)\b/.test(lower) && others.length && !/\b(everyone|all of us)\b/.test(lower)) {
+    const includeMe = !payer || /\b(me|us|we|i)\b/.test(lower.replace(/\bi paid\b/, ''));
+    participants = [...new Set([...(includeMe ? ['me'] : []), payer ? payer.m.name : 'me', ...others])];
   }
 
   const category = Object.entries(CATEGORY_WORDS).find(([, words]) => words.some((w) => lower.includes(w)))?.[0] || 'other';

@@ -12,6 +12,7 @@
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace server",
     "migrate": "npm run migrate --workspace server",
+    "seed": "npm run seed --workspace server",
     "test": "npm test --workspace server"
   },
   "engines": {

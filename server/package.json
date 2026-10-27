@@ -8,6 +8,7 @@
     "dev": "node --watch --env-file-if-exists=../.env src/index.js",
     "start": "node src/index.js",
     "migrate": "node --env-file-if-exists=../.env src/db/migrate.js",
+    "seed": "node --env-file-if-exists=../.env src/db/seed.js",
     "test": "node --env-file-if-exists=../.env --test --test-concurrency=1 \"test/*.test.js\""
   },
   "dependencies": {

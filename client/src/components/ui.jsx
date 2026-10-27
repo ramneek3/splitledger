@@ -8,7 +8,7 @@ export function Modal({ title, onClose, children, wide }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
-    ref.current?.querySelector('input, select, textarea, button')?.focus();
+    (ref.current?.querySelector('input, select, textarea') || ref.current?.querySelector('button'))?.focus();
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
