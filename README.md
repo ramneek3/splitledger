@@ -97,7 +97,7 @@ In production the same Express process serves the built React app, so it is a si
 Prerequisites: Node 20+ and Docker (for Postgres).
 
 ```bash
-git clone <REPO_URL> splitledger && cd splitledger
+git clone https://github.com/ramneek3/splitledger.git && cd splitledger
 cp .env.example .env            # then set JWT_SECRET (openssl rand -hex 32)
 docker compose up -d db         # Postgres on localhost:5433 (+ a test database)
 npm install
