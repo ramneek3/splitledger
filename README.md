@@ -3,7 +3,7 @@
 **Shared-expense ledger for flatmates, trips and student groups. Tracks who paid what, splits it fairly to the paisa, and works out the fewest payments needed to settle everyone up.**
 
 - **Live app:** https://splitledger-1a82.onrender.com (demo login: `demo@splitledger.app` / `demo12345`)
-- **Demo video:** `<DEMO_VIDEO_URL>`
+- **Demo video:** https://drive.google.com/file/d/1__xuijyjRmM-kcmzBWEHBECe6qJAVge6/view?usp=sharing
 - **Docs:** [Architecture](docs/ARCHITECTURE.md) · [API reference](docs/API.md)
 
 ---
