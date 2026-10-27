@@ -16,6 +16,6 @@ export const config = {
   jwtSecret: required('JWT_SECRET', 'dev-only-secret-change-me'),
   sessionDays: 7,
   anthropicApiKey: env.ANTHROPIC_API_KEY || '',
-  anthropicModel: env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
+  anthropicModel: env.ANTHROPIC_MODEL || 'claude-opus-5-5',
   aiTimeoutMs: Number(env.AI_TIMEOUT_MS || 12000),
 };
