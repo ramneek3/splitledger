@@ -58,7 +58,7 @@ export async function seed() {
   // Older months so the insights chart has history
   await add(me, 'September rent', 64000, 'rent', 56);
   await add(kabir, 'Weekend trip fuel', 3200, 'travel', 70);
-  await add(riya, 'August rent', 64000, 'rent', 88);
+  await add(riya, 'August rent', 64000, 'rent', 84);
 
   await createSettlement(kabir, flat.id, { fromUser: kabir, toUser: me, amount: 1000000, note: 'UPI' });
 

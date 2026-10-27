@@ -4,6 +4,10 @@ import { migrate } from './db/migrate.js';
 import { pool } from './db/pool.js';
 
 await migrate();
+if (process.env.SEED_DEMO === 'true') {
+  const { seed } = await import('./db/seed.js');
+  await seed();
+}
 const server = createApp().listen(config.port, () => {
   console.log(`SplitLedger API listening on http://localhost:${config.port}`);
 });
