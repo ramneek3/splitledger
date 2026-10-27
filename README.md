@@ -25,7 +25,7 @@ People who share costs (flatmates splitting rent and Wi-Fi, friends on a trip, a
 
 ## Solution
 
-SplitLedger gives each group a shared, append-only ledger. Every expense is split precisely in integer paise, balances are always derived from the ledger (never stored separately, so they can't drift), and a debt-simplification algorithm turns those balances into the minimum practical set of "X pays Y" transfers. Payments recorded against that plan are validated so a group can never get into an inconsistent state. To make entry fast, a **quick-add** box turns a sentence such as *"Riya paid 1500 for pizza with Aman"* into a pre-filled form (Claude-powered, with a rule-based fallback) that the user reviews before saving.
+SplitLedger gives each group a shared, append-only ledger. Every expense is split precisely in integer paise, balances are always derived from the ledger (never stored separately, so they can't drift), and a debt-simplification algorithm turns those balances into the minimum practical set of "X pays Y" transfers. Payments recorded against that plan are validated so a group can never get into an inconsistent state. To make entry fast, a **quick-add** box turns a sentence such as *"Riya paid 1500 for pizza with Aman"* into a pre-filled form (powered by a free OpenRouter model or Claude, with a rule-based fallback) that the user reviews before saving.
 
 ## Core workflows
 
@@ -33,7 +33,7 @@ SplitLedger gives each group a shared, append-only ledger. Every expense is spli
 |---|----------|--------------|
 | 1 | **Sign up and form a group** | Register → create group (currency) → share invite link/code → friends join. Owner/member roles. |
 | 2 | **Record an expense** | Choose payer, people and split mode (equal / exact / percent / shares) → live preview of every share → server re-validates and stores exact paise. Edit/delete with permission checks and conflict detection. |
-| 3 | **Quick add (AI)** | Type a sentence → Claude extracts structured fields (JSON-schema constrained) → server resolves names to members, validates amounts, dates and split maths, attaches warnings → user confirms → normal save path. |
+| 3 | **Quick add (AI)** | Type a sentence → an LLM (OpenRouter free model or Claude) extracts structured fields (JSON-schema constrained) → server resolves names to members, validates amounts, dates and split maths, attaches warnings → user confirms → normal save path. |
 | 4 | **See balances and settle up** | Net balance per member → simplified transfer plan → "Record" a payment → server checks it doesn't exceed what's owed (under a row lock) → balances update; undo available. |
 | 5 | **Review and close out** | Search/filter expenses, monthly and category insights, full activity log, CSV export; once everyone is settled the owner can archive the group (read-only). |
 
@@ -47,7 +47,7 @@ SplitLedger gives each group a shared, append-only ledger. Every expense is spli
 - **Optimistic concurrency:** edits carry a `version`; stale edits get `409 VERSION_CONFLICT` instead of silently overwriting
 - **Authorization:** membership checked on every group route (non-members get 404, not 403, so group ids can't be probed); only the creator or owner can edit/delete an expense; owner-only member management, invite reset, archive
 - **Lifecycle rules:** you can't leave or be removed with a non-zero balance; the owner must transfer ownership before leaving; archived groups are read-only
-- **AI quick add with fallback:** Claude (`claude-opus-5-5`, structured output, low effort, timeout + 1 retry, per-user rate limit) → automatic fallback to a deterministic parser when no key is set or the API fails
+- **Pluggable AI quick add with fallback:** provider chosen by config: OpenRouter (default free model `nvidia/nemotron-3.5-super-vl:free`) or Claude (`claude-opus-5-5`). JSON-schema output, timeout, per-user rate limit, output shape-checked → automatic fallback to a deterministic parser when no key is set, the free quota runs out, or the API fails
 - **Audit trail:** every change is written to an activity log in the same transaction as the change
 - **Insights:** 6-month spend vs your share, by-category and by-payer breakdowns
 - **CSV export** with spreadsheet formula-injection protection
@@ -62,7 +62,7 @@ SplitLedger gives each group a shared, append-only ledger. Every expense is spli
 | Database | PostgreSQL 16 (`pg`) | Relational data, transactions, row locks, partial unique indexes for idempotency |
 | Validation | Zod | One schema per endpoint, field-level error messages |
 | Auth | bcrypt + JWT in an httpOnly, SameSite=Lax cookie | No token in JS (XSS), Lax blocks cross-site POST (CSRF) |
-| AI | Anthropic SDK (`@anthropic-ai/sdk`), Claude structured outputs | Reliable JSON extraction; output is still re-validated |
+| AI | OpenRouter chat completions (free `:free` models) or Anthropic SDK (Claude structured outputs) | Free option for the deployment, paid option for best quality; output is always re-validated |
 | Security middleware | helmet (CSP etc.), express-rate-limit | Headers, brute-force and AI-cost protection |
 | Tests | `node:test` + supertest against real Postgres | Exercises real SQL, locks and constraints |
 | Deploy | Render Blueprint (web + Postgres), Dockerfile, GitHub Actions CI | One-click deploy; portable image |
@@ -82,7 +82,8 @@ Express app ──► routes/ (HTTP: auth, zod validation, status codes)
                  ├─ groups.js      membership, roles, lifecycle rules
                  ├─ expenses.js    create/edit/delete, idempotency, versioning
                  ├─ settlements.js validated repayments under row lock
-                 ├─ quickAdd.js    Claude / rules → normalize → draft
+                 ├─ quickAdd.js    AI or rules → normalize → draft
+                 ├─ aiProviders.js OpenRouter / Claude extractors, provider selection
                  └─ insights.js, exportCsv.js, activity.js
                   │
                   ▼
@@ -126,9 +127,14 @@ npm run build && npm start
 | `DATABASE_URL` | yes (prod) | Postgres connection string |
 | `DATABASE_SSL` | no | `true` for hosted Postgres that needs TLS from outside its network (e.g. Neon) |
 | `JWT_SECRET` | yes (prod) | Long random string used to sign session tokens |
-| `ANTHROPIC_API_KEY` | no | Enables Claude-powered quick add. Without it the rule-based parser is used |
+| `AI_PROVIDER` | no | `openrouter`, `anthropic` or `none`. Empty = use whichever key is set (OpenRouter first) |
+| `OPENROUTER_API_KEY` | no | Enables quick add via OpenRouter; free models cost nothing (20 req/min, 50 req/day) |
+| `OPENROUTER_MODEL` | no | Defaults to `nvidia/nemotron-3.5-super-vl:free`; any model that supports structured outputs works |
+| `ANTHROPIC_API_KEY` | no | Enables Claude-powered quick add (paid) |
 | `ANTHROPIC_MODEL` | no | Defaults to `claude-opus-5-5` |
-| `AI_TIMEOUT_MS` | no | Claude request timeout, default `12000` |
+| `AI_TIMEOUT_MS` | no | AI request timeout, default `20000` |
+
+With no AI key at all, quick add uses the built-in rule-based parser and everything else works the same.
 | `SEED_DEMO` | no | `true` creates the demo account on startup (skipped if it already exists) |
 | `PORT` | no | Default `4000` |
 
@@ -139,7 +145,7 @@ npm run build && npm start
 **Render (recommended, free tier):**
 1. Push this repo to GitHub.
 2. Render dashboard → **New → Blueprint** → select the repo. `render.yaml` provisions a Postgres database and the web service, generates `JWT_SECRET`, and seeds the demo account.
-3. Optionally add `ANTHROPIC_API_KEY` under the service's Environment tab.
+3. Optionally add `OPENROUTER_API_KEY` (free models) or `ANTHROPIC_API_KEY` under the service's Environment tab.
 4. The app is served at `https://<service>.onrender.com` (this project: https://splitledger-1a82.onrender.com); `/api/health` reports database connectivity.
 
 **Docker (any host):**
@@ -174,4 +180,4 @@ render.yaml, Dockerfile, docker-compose.yml, .github/workflows/ci.yml
 
 ## AI usage
 
-Built with AI assistance (Claude) as an engineering tool for scaffolding and review. Design decisions, the domain rules, and the test suite were reviewed and verified by running them. The in-app quick-add feature calls the Claude API at runtime.
+Built with AI assistance (Claude) as an engineering tool for scaffolding and review. Design decisions, the domain rules, and the test suite were reviewed and verified by running them. The in-app quick-add feature calls an LLM at runtime (an OpenRouter free model or Claude, selected by configuration).

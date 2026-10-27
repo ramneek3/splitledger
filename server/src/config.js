@@ -15,7 +15,11 @@ export const config = {
   databaseSsl: env.DATABASE_SSL === 'true',
   jwtSecret: required('JWT_SECRET', 'dev-only-secret-change-me'),
   sessionDays: 7,
+  // Quick-add AI: 'openrouter' | 'anthropic' | 'none'. Unset = first provider that has a key.
+  aiProvider: (env.AI_PROVIDER || '').toLowerCase(),
+  openrouterApiKey: env.OPENROUTER_API_KEY || '',
+  openrouterModel: env.OPENROUTER_MODEL || 'nvidia/nemotron-3.5-super-vl:free',
   anthropicApiKey: env.ANTHROPIC_API_KEY || '',
   anthropicModel: env.ANTHROPIC_MODEL || 'claude-opus-5-5',
-  aiTimeoutMs: Number(env.AI_TIMEOUT_MS || 12000),
+  aiTimeoutMs: Number(env.AI_TIMEOUT_MS || 20000), // free models can be slow
 };

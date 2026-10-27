@@ -2,6 +2,8 @@
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL
   || 'postgres://splitledger:splitledger@localhost:5433/splitledger_test';
 process.env.ANTHROPIC_API_KEY = ''; // tests exercise the deterministic rule-based quick-add path
+process.env.OPENROUTER_API_KEY = '';
+process.env.AI_PROVIDER = '';
 
 const { default: request } = await import('supertest');
 const { createApp } = await import('../src/app.js');

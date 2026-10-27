@@ -19,8 +19,12 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false # set in the dashboard; optional free AI for quick add
+      - key: OPENROUTER_MODEL
+        value: nvidia/nemotron-3.5-super-vl:free
       - key: ANTHROPIC_API_KEY
-        sync: false # set in the dashboard; optional (rule-based quick add is used without it)
+        sync: false # optional alternative (paid); rule-based quick add is used without any key
       - key: SEED_DEMO
         value: "true" # creates the demo account once; safe to leave on
 

@@ -7,6 +7,7 @@ import { ErrorBox, Modal } from './ui.jsx';
 
 const SPLIT_TYPES = { equal: 'Equally', exact: 'Exact amounts', percent: 'Percentages', shares: 'Shares' };
 const VALUE_LABEL = { exact: 'Amount', percent: '%', shares: 'Shares' };
+const AI_LABEL = { anthropic: 'Claude', openrouter: 'OpenRouter' };
 
 function initialRows(members, expense) {
   const byId = new Map((expense?.splits || []).map((s) => [s.userId, s]));
@@ -57,7 +58,7 @@ export default function ExpenseForm({ group, members, me, expense, onClose, onSa
     setQuick({ ...quick, busy: true, info: null });
     setError(null);
     try {
-      const { draft, source: src, fallbackReason } = await api(`/groups/${group.id}/expenses/draft`, { method: 'POST', body: { text: quick.text } });
+      const { draft, source: src, provider, model, fallbackReason } = await api(`/groups/${group.id}/expenses/draft`, { method: 'POST', body: { text: quick.text } });
       source.current = src;
       setF({
         description: draft.description,
@@ -73,7 +74,7 @@ export default function ExpenseForm({ group, members, me, expense, onClose, onSa
         const value = !p || p.value == null ? '' : draft.splitType === 'exact' ? toInput(p.value) : String(p.value);
         return { userId: m.id, name: m.name, included: !!p, value };
       }));
-      setQuick({ text: quick.text, busy: false, info: { src, warnings: draft.warnings, fallbackReason } });
+      setQuick({ text: quick.text, busy: false, info: { src, provider, model, warnings: draft.warnings, fallbackReason } });
     } catch (err) {
       setQuick({ ...quick, busy: false, info: null });
       setError(err);
@@ -117,7 +118,9 @@ export default function ExpenseForm({ group, members, me, expense, onClose, onSa
           </div>
           {quick.info && (
             <div className="quick-info">
-              <span className="badge">{quick.info.src === 'ai' ? 'Filled by Claude' : 'Filled by rules'}</span>
+              <span className="badge" title={quick.info.model || ''}>
+                {quick.info.src === 'ai' ? `Filled by AI · ${AI_LABEL[quick.info.provider] || quick.info.provider}` : 'Filled by rules'}
+              </span>
               {quick.info.fallbackReason && <span className="muted"> {quick.info.fallbackReason}.</span>}
               <span className="muted"> Check the details below before saving.</span>
               {quick.info.warnings.length > 0 && <ul className="warnings">{quick.info.warnings.map((w) => <li key={w}>⚠️ {w}</li>)}</ul>}

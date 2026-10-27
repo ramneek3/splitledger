@@ -8,7 +8,7 @@
 | **Routes** (`server/src/routes`) | HTTP concerns only: auth middleware, Zod validation, mapping results to status codes. |
 | **Services** (`server/src/services`) | Business rules. Two kinds: **pure modules** (`splits.js`, `ledger.js`) with no I/O, unit-tested directly; **transactional services** (`groups`, `expenses`, `settlements`) that wrap each use case in one DB transaction. |
 | **PostgreSQL** | Source of truth. Constraints (CHECKs, FKs, partial unique indexes) back up application validation. |
-| **Claude API** (optional) | Extracts structured fields from a free-text expense description. Never writes data directly. |
+| **LLM provider** (optional) | OpenRouter (free models) or Claude extracts structured fields from a free-text expense description. Never writes data directly. |
 
 ## Data model
 
@@ -55,8 +55,10 @@ Expenses carry a `version`. `PUT` must send the version it loaded; on a mismatch
 
 ### 7. AI quick add: the model proposes, the server decides
 ```
-text ─► Claude (JSON-schema structured output, effort=low, 12s timeout, 1 retry)
-     └► on missing key / API error / refusal ─► deterministic rule parser
+text ─► activeProvider(): AI_PROVIDER, else the first configured key (OpenRouter, then Claude)
+     ─► OpenRouter free model or Claude (JSON-schema output, 20s timeout)
+     └► parseModelJson(): strip ``` fences, shape-check every field with safe defaults
+     └► on missing key / 429 quota / API error / refusal / bad JSON ─► deterministic rule parser
                          │
                          ▼
                  normalize(): resolve names → member ids (ambiguity = warning),
@@ -69,7 +71,8 @@ text ─► Claude (JSON-schema structured output, effort=low, 12s timeout, 1 re
 - The user's text is wrapped as data and the prompt says so; output is constrained by a JSON schema and then treated as untrusted input.
 - Nothing is saved without the user's confirmation, and the save goes through the same validation as a manual entry.
 - AI requests are rate-limited per user (30 per 10 minutes) to bound cost.
-- The response says whether Claude or the rules produced the draft, and why it fell back.
+- The response says which provider and model (or the rules) produced the draft, and why it fell back. Errors are mapped to user-safe reasons (e.g. "free model is busy or its daily limit was reached").
+- Providers live in `aiProviders.js` behind one interface, so adding another is one function plus a config entry. Free models don't always honour the schema, so their output is shape-checked before normalize() sees it.
 
 ### 8. Sessions
 JWT signed with `JWT_SECRET`, stored in an `httpOnly`, `SameSite=Lax`, `Secure` (in production) cookie, valid for 7 days. Login and register are rate-limited, and login compares against a dummy hash when the email doesn't exist, so response timing doesn't reveal which emails are registered.
@@ -89,6 +92,7 @@ JWT signed with `JWT_SECRET`, stored in an `httpOnly`, `SameSite=Lax`, `Secure` 
 |-------|----------------|
 | `ledger.unit.test.js` | Split maths for all modes, rounding property test, balance derivation, debt simplification |
 | `quickAdd.unit.test.js` | Rule parser, name resolution and ambiguity, normalize() rejecting bad model output |
+| `aiProviders.unit.test.js` | Provider selection, OpenRouter request shape, fenced JSON, 429 / upstream error / non-JSON / network fallbacks (fetch mocked) |
 | `api.test.js` | Auth flows, 404-for-non-members, duplicate join, full expense → balance → edit conflict → settle → leave → archive workflow, idempotency, concurrent settlement race, search/filters, insights, CSV injection, quick-add endpoint |
 
 Integration tests run against a real Postgres database (separate `splitledger_test` database), locally via docker-compose and in GitHub Actions.
