@@ -103,5 +103,11 @@ test('parseModelJson repairs loosely typed output instead of crashing', () => {
   assert.deepEqual(raw.participants, []);
   assert.deepEqual(raw.values, []);
   assert.equal(raw.paid_by, 'me');
-  assert.throws(() => parseModelJson('[1,2]'), /could not be used/);
+  assert.throws(() => parseModelJson('[1,2]'), (e) => e.reason === 'AI response could not be used');
+});
+
+test('parseModelJson extracts the object when a model wraps it in prose', () => {
+  const raw = parseModelJson('Here is the expense:\n{"description":"Chai","amount":40,"paid_by":"me","participants":["everyone"],"split_type":"equal","values":[],"category":"food","date":null,"notes":""}\nHope that helps!');
+  assert.equal(raw.amount, 40);
+  assert.throws(() => parseModelJson('', 'finish_reason=length'), (e) => /finish_reason=length/.test(e.message));
 });

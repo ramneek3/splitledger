@@ -74,17 +74,25 @@ function systemPrompt(members, me, today) {
 
 const userMessage = (text) => `<expense_note>\n${text}\n</expense_note>`;
 
-/** Parses model text that should be JSON, tolerating ```json fences some models add. */
-export function parseModelJson(text) {
+/**
+ * Parses model text that should be JSON. Tolerates ```json fences and prose around
+ * the object (common with free/open models) by falling back to the outermost {...}.
+ * `meta` is only used to make failures diagnosable in server logs.
+ */
+export function parseModelJson(text, meta = '') {
   const cleaned = String(text || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  let value;
-  try {
-    value = JSON.parse(cleaned);
-  } catch {
-    throw new AiUnavailable('AI response could not be used');
+  const candidates = [cleaned];
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start >= 0 && end > start) candidates.push(cleaned.slice(start, end + 1));
+  for (const c of candidates) {
+    try {
+      const value = JSON.parse(c);
+      if (value && typeof value === 'object' && !Array.isArray(value)) return rawShape.parse(value);
+    } catch { /* try the next candidate */ }
   }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AiUnavailable('AI response could not be used');
-  return rawShape.parse(value);
+  throw new AiUnavailable('AI response could not be used',
+    new Error(`unparseable model output (${cleaned.length} chars${meta ? `, ${meta}` : ''})`));
 }
 
 /* ------------------------------ Anthropic ------------------------------ */
@@ -135,7 +143,9 @@ async function extractWithOpenRouter(text, members, me, today) {
       },
       body: JSON.stringify({
         model: config.openrouterModel,
-        max_tokens: 1000,
+        // Reasoning models spend output tokens thinking before answering; leave room for both.
+        max_tokens: 4000,
+        reasoning: { effort: 'low', exclude: true },
         messages: [
           { role: 'system', content: `${systemPrompt(members, me, today)}\nReply with a single JSON object only.` },
           { role: 'user', content: userMessage(text) },
@@ -150,7 +160,8 @@ async function extractWithOpenRouter(text, members, me, today) {
   if (!res.ok) throw new AiUnavailable(openRouterReason(res.status), new Error(body?.error?.message || `HTTP ${res.status}`));
   // OpenRouter can also report upstream provider errors inside a 200 response.
   if (body?.error) throw new AiUnavailable(openRouterReason(body.error.code || 502), new Error(body.error.message));
-  return parseModelJson(body?.choices?.[0]?.message?.content);
+  const choice = body?.choices?.[0];
+  return parseModelJson(choice?.message?.content, `finish_reason=${choice?.finish_reason ?? 'none'}, model=${body?.model ?? '?'}`);
 }
 
 /* ------------------------------- Selection ----------------------------- */
