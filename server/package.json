@@ -1,0 +1,27 @@
+{
+  "name": "splitledger-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../.env src/index.js",
+    "start": "node src/index.js",
+    "migrate": "node --env-file-if-exists=../.env src/db/migrate.js",
+    "test": "node --env-file-if-exists=../.env --test --test-concurrency=1 test/"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.65.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  }
+}
